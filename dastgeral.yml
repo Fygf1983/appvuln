@@ -1,0 +1,53 @@
+name: DAST Completo - Banco
+
+on:
+  push:
+    branches:
+      - M_dast
+
+jobs:
+  preparar-alvo-e-scan:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - uses: actions/checkout@v4
+
+      - name: Build da aplicação
+        run: |
+          docker build -t nikto-vulnerable .
+
+      - name: Subir aplicação
+        run: |
+          docker run -d \
+            --name nikto-vuln \
+            -p 3000:3000 \
+            nikto-vulnerable
+
+          sleep 30
+
+      - name: Testar aplicação
+        run: |
+          curl http://localhost:3000
+
+      - name: Instalar Nikto
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nikto
+
+      - name: Nikto
+        run: |
+          nikto -h http://localhost:3000 \
+            -Format htm \
+            -output nikto-report.html
+
+      - name: Nuclei
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: http://localhost:3000
+
+      - name: OWASP ZAP
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: http://localhost:3000
