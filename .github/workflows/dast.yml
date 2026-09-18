@@ -1,0 +1,57 @@
+name: DAST Completo
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  dast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build da Aplicação
+        run: docker build -t nikto-vulnerable .
+
+      - name: Iniciar Aplicação
+        run: |
+          docker run -d \
+            --name nikto-vuln \
+            -p 3000:3000 \
+            nikto-vulnerable
+
+          sleep 30
+
+      - name: Verificar Aplicação
+        run: |
+          curl http://localhost:3000
+
+      - name: Instalar Nikto
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nikto
+
+      - name: Executar Nikto
+        run: |
+          nikto -h http://localhost:3000 \
+            -Format htm \
+            -output nikto-report.html
+
+      - name: Upload Relatório Nikto
+        uses: actions/upload-artifact@v4
+        with:
+          name: nikto-report
+          path: nikto-report.html
+
+      - name: Executar Nuclei
+        uses: projectdiscovery/nuclei-action@main
+        with:
+          target: http://localhost:3000
+
+      - name: Executar ZAP Baseline
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: http://localhost:3000
